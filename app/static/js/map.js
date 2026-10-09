@@ -16,118 +16,205 @@ const map = new maplibregl.Map({
     style: {
         version: 8,
         sources: {
-            agua:         { type:'vector', tiles:[MARTIN+'/bogota_agua/{z}/{x}/{y}'], minzoom:10, maxzoom:16 },
-            landuse:      { type:'vector', tiles:[MARTIN+'/bogota_landuse/{z}/{x}/{y}'],      minzoom:10, maxzoom:16 },
-            leisure:      { type:'vector', tiles:[MARTIN+'/bogota_leisure/{z}/{x}/{y}'],      minzoom:11, maxzoom:16 },
-            equipamiento: { type:'vector', tiles:[MARTIN+'/bogota_equipamiento/{z}/{x}/{y}'], minzoom:12, maxzoom:16 },
-            comercio:     { type:'vector', tiles:[MARTIN+'/bogota_comercio/{z}/{x}/{y}'],     minzoom:12, maxzoom:16 },
-            parques:      { type:'vector', tiles:[MARTIN+'/bogota_parques/{z}/{x}/{y}'],      minzoom:12, maxzoom:16 },
-            edificios:    { type:'vector', tiles:[MARTIN+'/bogota_edificios/{z}/{x}/{y}'],    minzoom:14, maxzoom:16 },
-            calles:       { type:'vector', tiles:[MARTIN+'/bogota_calles/{z}/{x}/{y}'],       minzoom:10, maxzoom:16 },
-            ciclovias:    { type:'vector', tiles:[MARTIN+'/bogota_ciclovias/{z}/{x}/{y}'],    minzoom:12, maxzoom:16 },
-            peatonal:     { type:'vector', tiles:[MARTIN+'/bogota_peatonal/{z}/{x}/{y}'],     minzoom:14, maxzoom:16 },
+            landuse: {
+                type: 'vector',
+                tiles: [MARTIN + '/bogota_landuse/{z}/{x}/{y}'],
+                minzoom: 11,
+                maxzoom: 16,
+            },
+            leisure: {
+                type: 'vector',
+                tiles: [MARTIN + '/bogota_leisure/{z}/{x}/{y}'],
+                minzoom: 12,
+                maxzoom: 16,
+            },
+            parques: {
+                type: 'vector',
+                tiles: [MARTIN + '/bogota_parques/{z}/{x}/{y}'],
+                minzoom: 12,
+                maxzoom: 16,
+            },
+            agua: {
+                type: 'vector',
+                tiles: [MARTIN + '/bogota_agua/{z}/{x}/{y}'],
+                minzoom: 10,
+                maxzoom: 16,
+            },
+            edificios: {
+                type: 'vector',
+                tiles: [MARTIN + '/bogota_edificios/{z}/{x}/{y}'],
+                minzoom: 14,
+                maxzoom: 16,
+            },
+            comercio: {
+                type: 'vector',
+                tiles: [MARTIN + '/bogota_comercio/{z}/{x}/{y}'],
+                minzoom: 14,
+                maxzoom: 16,
+            },
+            equipamiento: {
+                type: 'vector',
+                tiles: [MARTIN + '/bogota_equipamiento/{z}/{x}/{y}'],
+                minzoom: 13,
+                maxzoom: 16,
+            },
+            calles: {
+                type: 'vector',
+                tiles: [MARTIN + '/bogota_calles/{z}/{x}/{y}'],
+                minzoom: 10,
+                maxzoom: 16,
+            },
+            ciclovias: {
+                type: 'vector',
+                tiles: [MARTIN + '/bogota_ciclovias/{z}/{x}/{y}'],
+                minzoom: 13,
+                maxzoom: 16,
+            },
+            peatonal: {
+                type: 'vector',
+                tiles: [MARTIN + '/bogota_peatonal/{z}/{x}/{y}'],
+                minzoom: 14,
+                maxzoom: 16,
+            },
         },
-	    layers: [
-    { id:'bg', type:'background', paint:{'background-color':'#e0d8cc'} },
+        layers: [
+            { id: 'bg', type: 'background', paint: { 'background-color': '#e0d8cc' } },
 
-            // en layers, después de leisure-playground y antes de comercio:
-    { id:'agua-fill', type:'fill', source:'agua', 'source-layer':'bogota_agua',
-        paint:{'fill-color':'#a8d0e8','fill-opacity':1} },
-    { id:'agua-line', type:'line', source:'agua', 'source-layer':'bogota_agua',
-        paint:{'line-color':'#78b0d0','line-width':1.5} },
-    
-    // landuse — base, debajo de todo
-    { id:'landuse-residencial', type:'fill', source:'landuse', 'source-layer':'bogota_landuse',
-      filter:['==',['get','landuse'],'residential'],
-      paint:{'fill-color':'#e8e0d8','fill-opacity':0.4} },
-    { id:'landuse-comercial', type:'fill', source:'landuse', 'source-layer':'bogota_landuse',
-      filter:['in',['get','landuse'],['literal',['commercial','retail']]],
-      paint:{'fill-color':'#fce8c0','fill-opacity':1} },
-    { id:'landuse-industrial', type:'fill', source:'landuse', 'source-layer':'bogota_landuse',
-      filter:['==',['get','landuse'],'industrial'],
-      paint:{'fill-color':'#d8dce8','fill-opacity':1} },
-    { id:'landuse-verde', type:'fill', source:'landuse', 'source-layer':'bogota_landuse',
-      filter:['in',['get','landuse'],['literal',['grass','forest','meadow','farmland','recreation_ground']]],
-      paint:{'fill-color':'#d4e8c4','fill-opacity':1} },
-    { id:'landuse-cementerio', type:'fill', source:'landuse', 'source-layer':'bogota_landuse',
-      filter:['in',['get','landuse'],['literal',['cemetery','religious']]],
-      paint:{'fill-color':'#c4d4bc','fill-opacity':1} },
-    { id:'landuse-construccion', type:'fill', source:'landuse', 'source-layer':'bogota_landuse',
-      filter:['==',['get','landuse'],'construction'],
-      paint:{'fill-color':'#e8d8a0','fill-opacity':1} },
+            // ── Suelo (debajo de todo) ──────────────────────────────────────
+            {
+                id: 'landuse-fill',
+                type: 'fill',
+                source: 'landuse',
+                'source-layer': 'bogota_landuse',
+                paint: {
+                    'fill-color': [
+                        'match', ['get', 'landuse'],
+                        'residential', '#e8e0d4',
+                        'commercial',  '#e3d6c8',
+                        'industrial',  '#d9d2c8',
+                        'retail',      '#e6d9c9',
+                        'grass',       '#cfe3b8',
+                        'forest',      '#a8ceA0',
+                        'meadow',      '#d6e6bd',
+                        'cemetery',    '#c8cdb8',
+                        'religious',   '#d8cfc0',
+                        'recreation_ground', '#cfe3b8',
+                        'construction','#d8d0c0',
+                        'farmland',    '#dde3bd',
+                        /* default */  '#e0d8cc',
+                    ],
+                    'fill-opacity': 0.6,
+                },
+            },
+            {
+                id: 'leisure-fill',
+                type: 'fill',
+                source: 'leisure',
+                'source-layer': 'bogota_leisure',
+                paint: { 'fill-color': '#c3e0a8', 'fill-opacity': 0.7 },
+            },
+            {
+                id: 'parques-fill',
+                type: 'fill',
+                source: 'parques',
+                'source-layer': 'bogota_parques',
+                paint: { 'fill-color': '#b8dca0', 'fill-opacity': 1 },
+            },
 
-    // leisure
-    { id:'leisure-parque', type:'fill', source:'leisure', 'source-layer':'bogota_leisure',
-      filter:['in',['get','leisure'],['literal',['park','garden','nature_reserve']]],
-      paint:{'fill-color':'#b8dca0','fill-opacity':1} },
-    { id:'leisure-deporte', type:'fill', source:'leisure', 'source-layer':'bogota_leisure',
-      filter:['in',['get','leisure'],['literal',['pitch','track','sports_centre','stadium']]],
-      paint:{'fill-color':'#c8e8a8','fill-opacity':1} },
-    { id:'leisure-playground', type:'fill', source:'leisure', 'source-layer':'bogota_leisure',
-      filter:['==',['get','leisure'],'playground'],
-      paint:{'fill-color':'#e8e898','fill-opacity':1} },
+            // ── Agua (mezcla líneas y polígonos en la misma vista) ──────────
+            {
+                id: 'agua-fill',
+                type: 'fill',
+                source: 'agua',
+                'source-layer': 'bogota_agua',
+                paint: { 'fill-color': '#a8cfe0', 'fill-opacity': 0.9 },
+            },
+            {
+                id: 'agua-line',
+                type: 'line',
+                source: 'agua',
+                'source-layer': 'bogota_agua',
+                paint: { 'line-color': '#7fb3d1', 'line-width': ['interpolate', ['linear'], ['zoom'], 10, 1, 16, 3] },
+            },
 
-    // comercio
-    { id:'comercio-mall', type:'fill', source:'comercio', 'source-layer':'bogota_comercio',
-      filter:['in',['get','shop'],['literal',['mall','supermarket']]],
-      paint:{'fill-color':'#f8c070','fill-opacity':1} },
-    { id:'comercio-otros', type:'fill', source:'comercio', 'source-layer':'bogota_comercio',
-      filter:['in',['get','shop'],['literal',['convenience','bakery','clothes','hardware','car_repair','car']]],
-      paint:{'fill-color':'#f8d8a0','fill-opacity':1} },
+            // ── Edificios y usos puntuales ───────────────────────────────────
+            {
+                id: 'edificios-fill',
+                type: 'fill',
+                source: 'edificios',
+                'source-layer': 'bogota_edificios',
+                paint: { 'fill-color': '#ddd5c8', 'fill-outline-color': '#b8a898' },
+            },
+            {
+                id: 'comercio-fill',
+                type: 'fill',
+                source: 'comercio',
+                'source-layer': 'bogota_comercio',
+                paint: { 'fill-color': '#f0b8a0', 'fill-outline-color': '#d99878', 'fill-opacity': 0.85 },
+            },
+            {
+                id: 'equipamiento-fill',
+                type: 'fill',
+                source: 'equipamiento',
+                'source-layer': 'bogota_equipamiento',
+                paint: { 'fill-color': '#c9a8e0', 'fill-outline-color': '#a880c4', 'fill-opacity': 0.85 },
+            },
 
-    // equipamiento
-    { id:'equip-salud', type:'fill', source:'equipamiento', 'source-layer':'bogota_equipamiento',
-      filter:['in',['get','amenity'],['literal',['hospital','clinic']]],
-      paint:{'fill-color':'#f4a0a0','fill-opacity':1} },
-    { id:'equip-educacion', type:'fill', source:'equipamiento', 'source-layer':'bogota_equipamiento',
-      filter:['in',['get','amenity'],['literal',['school','university','college','kindergarten']]],
-      paint:{'fill-color':'#f8d878','fill-opacity':1} },
-    { id:'equip-transporte', type:'fill', source:'equipamiento', 'source-layer':'bogota_equipamiento',
-      filter:['==',['get','amenity'],'bus_station'],
-      paint:{'fill-color':'#90b8f8','fill-opacity':1} },
-    { id:'equip-religion', type:'fill', source:'equipamiento', 'source-layer':'bogota_equipamiento',
-      filter:['==',['get','amenity'],'place_of_worship'],
-      paint:{'fill-color':'#d8c8e8','fill-opacity':1} },
-    { id:'equip-comunidad', type:'fill', source:'equipamiento', 'source-layer':'bogota_equipamiento',
-      filter:['in',['get','amenity'],['literal',['community_centre','police']]],
-      paint:{'fill-color':'#a8c8f0','fill-opacity':1} },
-
-
-    // edificios — encima del landuse
-    { id:'edificios-fill', type:'fill', source:'edificios', 'source-layer':'bogota_edificios',
-      paint:{'fill-color':'#ddd5c8','fill-outline-color':'#b8a898'} },
-
-    // peatonal — sutil, debajo de calles
-    { id:'peatonal-line', type:'line', source:'peatonal', 'source-layer':'bogota_peatonal',
-      filter:['in',['get','highway'],['literal',['footway','path','pedestrian']]],
-      paint:{'line-color':'#c8b090','line-width':0.8,'line-dasharray':[2,3]} },
-    { id:'escaleras-line', type:'line', source:'peatonal', 'source-layer':'bogota_peatonal',
-      filter:['==',['get','highway'],'steps'],
-      paint:{'line-color':'#b89878','line-width':1,'line-dasharray':[1,2]} },
-
-    // calles — encima de todo el fill
-    { id:'calles-minor', type:'line', source:'calles', 'source-layer':'bogota_calles',
-      filter:['in',['get','highway'],['literal',['residential','unclassified','service','living_street']]],
-      paint:{'line-color':'#ffffff','line-width':['interpolate',['linear'],['zoom'],10,1,16,4]} },
-    { id:'calles-main', type:'line', source:'calles', 'source-layer':'bogota_calles',
-      filter:['in',['get','highway'],['literal',['primary','secondary','tertiary','primary_link','secondary_link','tertiary_link']]],
-      paint:{'line-color':'#ffffff','line-width':['interpolate',['linear'],['zoom'],10,2,16,8]} },
-    { id:'calles-highway', type:'line', source:'calles', 'source-layer':'bogota_calles',
-      filter:['in',['get','highway'],['literal',['motorway','trunk','motorway_link','trunk_link']]],
-      paint:{'line-color':'#f8c050','line-width':['interpolate',['linear'],['zoom'],10,3,16,10]} },
-
-    // ciclovías — encima de calles, visibles pero no dominantes
-    { id:'ciclovias-line', type:'line', source:'ciclovias', 'source-layer':'bogota_ciclovias',
-      paint:{'line-color':'#38a838','line-width':['interpolate',['linear'],['zoom'],12,1.5,16,3],
-             'line-dasharray':[4,2]} },
-]
+            // ── Vías (encima de los polígonos) ──────────────────────────────
+            {
+                id: 'calles-minor',
+                type: 'line',
+                source: 'calles',
+                'source-layer': 'bogota_calles',
+                filter: ['in', ['get', 'highway'], ['literal', ['residential', 'unclassified', 'service', 'living_street']]],
+                paint: { 'line-color': '#ffffff', 'line-width': ['interpolate', ['linear'], ['zoom'], 10, 1, 16, 4] },
+            },
+            {
+                id: 'calles-main',
+                type: 'line',
+                source: 'calles',
+                'source-layer': 'bogota_calles',
+                filter: ['in', ['get', 'highway'], ['literal', ['primary', 'secondary', 'tertiary', 'primary_link', 'secondary_link', 'tertiary_link']]],
+                paint: { 'line-color': '#ffffff', 'line-width': ['interpolate', ['linear'], ['zoom'], 10, 2, 16, 8] },
+            },
+            {
+                id: 'calles-highway',
+                type: 'line',
+                source: 'calles',
+                'source-layer': 'bogota_calles',
+                filter: ['in', ['get', 'highway'], ['literal', ['motorway', 'trunk', 'motorway_link', 'trunk_link']]],
+                paint: { 'line-color': '#f8c050', 'line-width': ['interpolate', ['linear'], ['zoom'], 10, 3, 16, 10] },
+            },
+            {
+                id: 'ciclovias-line',
+                type: 'line',
+                source: 'ciclovias',
+                'source-layer': 'bogota_ciclovias',
+                paint: {
+                    'line-color': '#2a9d8f',
+                    'line-width': ['interpolate', ['linear'], ['zoom'], 13, 1.5, 16, 3],
+                    'line-dasharray': [2, 1.5],
+                },
+            },
+            {
+                id: 'peatonal-line',
+                type: 'line',
+                source: 'peatonal',
+                'source-layer': 'bogota_peatonal',
+                paint: {
+                    'line-color': '#a89078',
+                    'line-width': ['interpolate', ['linear'], ['zoom'], 14, 1, 16, 2],
+                    'line-dasharray': [1, 1],
+                },
+            },
+        ],
     },
     center: [-74.0817, 4.6097],
     zoom: 12,
-    attributionControl: false,
+    attributionControl: true,
 });
-// Sin zoom, sin brújula
-map.addControl(new maplibregl.NavigationControl({ showZoom: true, showCompass: true }));
+// Sin zoom, sin brújula: el zoom debe ser con gestos de los dedos igual la brujula 
+map.addControl(new maplibregl.NavigationControl({ showZoom: false, showCompass: true }));
 
 map.on('load', () => {
     // Capa ruta
@@ -144,10 +231,14 @@ function agregarPin(casa, animado) {
     const el = document.createElement('div');
     el.innerHTML = TIPO_ICON[casa.tipo] || '🏠';
     el.style.cssText = 'font-size:26px;cursor:pointer;filter:drop-shadow(0 2px 4px rgba(0,0,0,.35));transition:transform .15s;';
-    if (animado) el.style.animation = 'pinPop .4s ease forwards';
+
+//--------- Toca revisar esta animacion, creo que esta corriendo el icono a donde no debe ------------------->
+
+    if (animado) el.style.animation = 'pinPop .4s ease forwards'; 
     el.onmouseenter = () => el.style.transform = 'scale(1.25)';
     el.onmouseleave = () => el.style.transform = 'scale(1)';
-
+// ---------------------------------------------------------------------------------------------------------
+	
     let fotosHTML = '';
     if (casa.fotos && casa.fotos.length) {
         fotosHTML = '<div class="popup-fotos">' +
@@ -175,7 +266,7 @@ function agregarPin(casa, animado) {
             </div>
         `);
 
-    const marker = new maplibregl.Marker({ element: el })
+    const marker = new maplibregl.Marker({ element: el }) // Toca configurar una ubicacion aproximeda per seguridad y no la exacta
         .setLngLat([casa.lng, casa.lat])
         .setPopup(popup)
         .addTo(map);
@@ -240,39 +331,29 @@ function obtenerGPS() {
     const textEl   = document.getElementById('gps-text');
     statusEl.className = '';
     textEl.textContent  = 'Obteniendo ubicación…';
-    userLocation = null;
-    actualizarBotonGuardar();
 
     if (!navigator.geolocation) {
-        statusEl.className = 'err';
-        textEl.textContent  = 'GPS no disponible en este dispositivo';
+        statusEl.classList.add('error');
+        textEl.textContent = 'Tu navegador no soporta geolocalización';
         return;
     }
+
     navigator.geolocation.getCurrentPosition(
         pos => {
             userLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-            statusEl.className = 'ok';
-            textEl.textContent  = `📍 ${userLocation.lat.toFixed(5)}, ${userLocation.lng.toFixed(5)}`;
+            statusEl.classList.add('ok');
+            textEl.textContent = 'Ubicación obtenida ✓';
             actualizarBotonGuardar();
         },
-        () => {
-            statusEl.className = 'err';
-            textEl.textContent  = 'No se pudo obtener la ubicación';
-            actualizarBotonGuardar();
+        err => {
+            statusEl.classList.add('error');
+            textEl.textContent = 'No se pudo obtener tu ubicación';
         },
         { enableHighAccuracy: true, timeout: 10000 }
     );
 }
 
-function centrarUbicacion() {
-    if (!navigator.geolocation) { showToast('GPS no disponible'); return; }
-    navigator.geolocation.getCurrentPosition(
-        pos => map.flyTo({ center: [pos.coords.longitude, pos.coords.latitude], zoom: 15 }),
-        ()  => showToast('No se pudo obtener ubicación')
-    );
-}
-
-// ── Tipo ──────────────────────────────────────────────────────────────────────
+// ── Tipo de vivienda ─────────────────────────────────────────────────────────
 function selTipo(el) {
     document.querySelectorAll('.tipo-chip').forEach(c => c.classList.remove('selected'));
     el.classList.add('selected');
@@ -335,6 +416,8 @@ function resetSlot(idx) {
 }
 
 // ── Guardar ───────────────────────────────────────────────────────────────────
+// Un usuario qeu no sea root no puede agragar mas de (1) publicacion, debe contratar nuestros servicios
+// para que un usuario publique debe validar su numero de telefono mediante un sms o whatsapp
 function guardarArriendo() {
     if (!tipoSeleccionado || !userLocation) return;
     const telefono    = document.getElementById('inp-telefono').value.trim();
@@ -368,7 +451,7 @@ function guardarArriendo() {
             casas.push(casa);
         }
         map.flyTo({ center: [casa.lng, casa.lat], zoom: 15 });
-        showToast('✅ Arriendo publicado');
+        showToast('✅ Arriendo publicado'); // toca corregir porque tambien puede ser una venta o si yo administro esta publicacion debe destacar ya que yo soy el usuario root admin con capacidad para eliminar cualquier publicacion
     })
     .catch(err => {
         btn.disabled    = false;
@@ -424,8 +507,9 @@ function eliminarCasa(id) {
             }
         });
 }
-
+// toca añadir un contador para que se eliminen automatica mente cada 45 dias 
 // ── WebSocket ─────────────────────────────────────────────────────────────────
+// Porque estamos usando websockets??????
 function conectarWS() {
     const proto = location.protocol === 'https:' ? 'wss' : 'ws';
     const ws    = new WebSocket(proto + '://' + location.host + '/ws');

@@ -1,5 +1,12 @@
 # Bogotá Arriendos 
 
+# .env porque en main.py estan todas las CREDENCIALES EXPUESTAS
+
+# Para que websockets???
+# separar modelos de logica en main.py
+
+
+
 ### Mapa de la ciudad donden ubicar de forma rapida un piso en alquiler
 
 **Stack:** FastAPI · PostGIS · Martin  · OSRM  · MapLibre GL 

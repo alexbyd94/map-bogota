@@ -118,7 +118,7 @@ async def lifespan(app: FastAPI):
     with engine.connect() as conn:
         conn.execute(text("SELECT PostGIS_Version()"))
     init_db()
-    print("✅ PostGIS conectado")
+    print("PostGIS conectado")
     yield
 
 # ── App ───────────────────────────────────────────────────────────────────────

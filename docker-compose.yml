@@ -1,10 +1,8 @@
-version: "3.9"
-
 services:
 
-  # ── PostgreSQL  PostGIS ───────────────────────────────────────────────────
+  # ── PostgreSQL / PostGIS ───────────────────────────────────────────────────
   db:
-    image: postgis/postgis:16-3.4
+    image: postgis/postgis:16-3.5
     container_name: bogota_db
     restart: unless-stopped
     environment:
@@ -15,6 +13,11 @@ services:
       - "5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+      # Solo scripts que NO dependen de datos de OSM van aquí — Postgres los
+      # corre una sola vez, al crear el volumen, antes de que exista
+      # planet_osm_*. 02_crear_vistas.sql, 03_schema_actual.sql (dump de
+      # diagnóstico, no idempotente) y 04_casas_data.sql (dump redundante con
+      # los INSERT de 01_init.sql) NO deben estar en esta carpeta.
       - ./init:/docker-entrypoint-initdb.d
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U bogota_user -d bogota_map"]
@@ -22,6 +25,7 @@ services:
       timeout: 5s
       retries: 20
 
+  # ── Carga de OSM ──────────────────────────────────────────────────────────
   loader:
     image: iboates/osm2pgsql:latest
     container_name: bogota_loader
@@ -33,19 +37,33 @@ services:
       PGPASSWORD: bogota_pass
     volumes:
       - ./data:/data
-      - ./init:/init
-    command: >
-      sh -c "
+    entrypoint: ["/bin/sh", "-ec"]
+    command:
+      - |
         if [ ! -f /data/bogota.osm.pbf ]; then
-          echo '[loader] bogota.osm.pbf no encontrado. Ejecuta: bash scripts/01_preparar_datos.sh';
-          exit 0;
-        fi;
-        echo '[loader] Cargando bogota.osm.pbf…';
-        osm2pgsql --host db --port 5432 --username bogota_user --database bogota_map \
-          --slim --hstore --number-processes 4 /data/bogota.osm.pbf &&
-        psql -h db -U bogota_user -d bogota_map -f /init/02_crear_vistas.sql &&
-        echo '[loader] Carga completa.'
-      "
+          echo "[loader] No se encontró /data/bogota.osm.pbf"
+          exit 1
+        fi
+        osm2pgsql --host db --port 5432 --username bogota_user --database bogota_map --slim --hstore --number-processes 4 /data/bogota.osm.pbf
+        echo "[loader] Carga OSM completa."
+
+  # ── Vistas para Martin (solo puede correr DESPUÉS del loader) ─────────────
+  vistas:
+    image: postgis/postgis:16-3.5   # misma imagen que db: trae psql garantizado
+    container_name: bogota_vistas
+    restart: "no"
+    depends_on:
+      loader:
+        condition: service_completed_successfully
+    environment:
+      PGPASSWORD: bogota_pass
+    volumes:
+      - ./sql:/sql:ro
+    entrypoint: ["/bin/sh", "-ec"]
+    command:
+      - |
+        psql -h db -U bogota_user -d bogota_map -v ON_ERROR_STOP=1 -f /sql/02_crear_vistas.sql
+        echo "[vistas] Vistas creadas en schema tiles."
 
   # ── OSRM — Motor de rutas (perfil vehículo) ────────────────────────────────
   osrm-car:
@@ -91,6 +109,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      vistas:
+        condition: service_completed_successfully
     ports:
       - "3000:3000"
     volumes:
@@ -107,6 +127,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      vistas:
+        condition: service_completed_successfully
       martin:
         condition: service_started
     environment:
