@@ -151,9 +151,11 @@ SELECT
     name,
     way AS geom
 FROM public.planet_osm_polygon
-WHERE amenity IN ('hospital', 'clinic', 'school', 'university', 'college',
-                   'kindergarten', 'bus_station', 'police',
-                   'place_of_worship', 'community_centre', 'fuel');
+WHERE amenity IN ('hospital','clinic','doctors','dentist','pharmacy',
+    'school','college','university','kindergarten',
+    'townhall','courthouse','police','fire_station','post_office',
+    'museum','library','theatre','arts_centre','cinema','community_centre',
+    'place_of_worship','bus_station','fuel');
 
 -- ── Arriendos (pines) ─────────────────────────────────────────────────────────
 -- OJO: expone telefono/descripcion en un tile público. Si no quieres ese dato

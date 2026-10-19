@@ -26,6 +26,10 @@ unico uso y solo se debe autenticar una vez.
 6. Repetir la misma solicitud de creación con la misma clave de idempotencia y el mismo contenido devuelve la publicación original. Reutilizar la clave con otro contenido se rechaza.
 7. Si falla el procesamiento del evento, se conserva en la outbox y el consumidor reintenta. WebSockets desconectados se eliminan de la lista; al reconectarse, el navegador carga las publicaciones desde PostgreSQL.
 8. La persona puede recuperar el acceso mediante el mecanismo de recuperación de Google. El sistema no guarda contraseñas locales.
+9. Los usuarios con permiso para mas de 1 publicacion: Pueden publicar sin estar en el sitio ya son verificados por un admin y que pueden hacer varias publicaciones el mismo dia, 
+para ellos debe haber un formulario en el que puedan ingrasar la direccion y la lat y long de la propiedad
+para los demas usuarios es obligatorio que es esten en el sitio para garantizar la ubicacion
+
 
 ## Requisitos no funcionales
 

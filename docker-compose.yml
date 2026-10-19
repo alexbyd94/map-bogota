@@ -150,6 +150,7 @@ services:
       - "8000:8000"
     volumes:
       - ./app:/app
+      - ./app/static/js:/app/static/js
 
 volumes:
   pgdata:

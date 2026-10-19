@@ -1,3 +1,17 @@
+-- Toca investigar para que sirve esta funcion
+
+CREATE OR REPLACE FUNCTION calles_z(z integer, x integer, y integer)
+RETURNS bytea AS $$  
+SELECT ST_AsMVT(t, 'bogota_calles') 
+FROM (    SELECT highway, ST_AsMVTGeom(ST_Transform(ST_Simplify(geom, 
+CASE WHEN z < 12 THEN 50 ELSE 5 END), 3857),
+ST_TileEnvelope(z,x,y)) AS geom    
+FROM calles    
+WHERE geom && ST_Transform(ST_TileEnvelope(z,x,y), 4326) AND (z >= 13 OR highway IN ('motorway','trunk','primary'))  ) t;$$ LANGUAGE sql STABLE 
+PARALLEL SAFE;
+
+
+
 --
 -- PostgreSQL database dump
 --

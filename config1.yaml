@@ -1,0 +1,146 @@
+cache_control: "public, max-age=86400"
+
+postgres:
+  connection_string: postgresql://bogota_user:bogota_pass@db:5432/bogota_map
+  auto_publish: false
+  tables:
+    bogota_calles:
+      schema: tiles
+      table: bogota_calles
+      geometry_column: geom
+      geometry_type: LINESTRING
+      srid: 3857
+      minzoom: 10
+      maxzoom: 16
+      properties:
+        osm_id: int8
+        highway: text
+        name: text
+
+    bogota_peatonal:
+      schema: tiles
+      table: bogota_peatonal
+      geometry_column: geom
+      geometry_type: LINESTRING
+      srid: 3857
+      minzoom: 14
+      maxzoom: 16
+      properties:
+        osm_id: int8
+        highway: text
+        name: text
+
+    bogota_ciclovias:
+      schema: tiles
+      table: bogota_ciclovias
+      geometry_column: geom
+      geometry_type: LINESTRING
+      srid: 3857
+      minzoom: 13
+      maxzoom: 16
+      properties:
+        osm_id: int8
+        name: text
+
+    bogota_agua:
+      schema: tiles
+      table: bogota_agua
+      geometry_column: geom
+      geometry_type: GEOMETRY
+      srid: 3857
+      minzoom: 10
+      maxzoom: 16
+      properties:
+        osm_id: int8
+        waterway: text
+        name: text
+
+    bogota_edificios:
+      schema: tiles
+      table: bogota_edificios
+      geometry_column: geom
+      geometry_type: GEOMETRY
+      srid: 3857
+      minzoom: 14
+      maxzoom: 16
+      properties:
+        osm_id: int8
+        building: text
+        name: text
+
+    bogota_parques:
+      schema: tiles
+      table: bogota_parques
+      geometry_column: geom
+      geometry_type: GEOMETRY
+      srid: 3857
+      minzoom: 12
+      maxzoom: 16
+      properties:
+        osm_id: int8
+        tipo: text
+        name: text
+
+    bogota_leisure:
+      schema: tiles
+      table: bogota_leisure
+      geometry_column: geom
+      geometry_type: GEOMETRY
+      srid: 3857
+      minzoom: 12
+      maxzoom: 16
+      properties:
+        osm_id: int8
+        leisure: text
+        name: text
+
+    bogota_landuse:
+      schema: tiles
+      table: bogota_landuse
+      geometry_column: geom
+      geometry_type: GEOMETRY
+      srid: 3857
+      minzoom: 11
+      maxzoom: 16
+      properties:
+        osm_id: int8
+        landuse: text
+        name: text
+
+    bogota_comercio:
+      schema: tiles
+      table: bogota_comercio
+      geometry_column: geom
+      geometry_type: GEOMETRY
+      srid: 3857
+      minzoom: 14
+      maxzoom: 16
+      properties:
+        osm_id: int8
+        shop: text
+        name: text
+
+    bogota_equipamiento:
+      schema: tiles
+      table: bogota_equipamiento
+      geometry_column: geom
+      geometry_type: GEOMETRY
+      srid: 3857
+      minzoom: 13
+      maxzoom: 16
+      properties:
+        osm_id: int8
+        amenity: text
+        name: text
+
+    bogota_casas_view:
+      schema: tiles
+      table: bogota_casas_view
+      geometry_column: geom
+      geometry_type: POINT
+      srid: 4326
+      minzoom: 0
+      maxzoom: 16
+
+listen_addresses: "0.0.0.0:3000"
+
