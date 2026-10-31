@@ -4,8 +4,11 @@ let tipoSeleccionado = null;
 let fotosData        = [null, null, null, null];
 let fotoSlotActivo   = null;
 let userLocation     = null;
+let permiteUbicacionManual = false;
 let markersMap       = {};
 let targetCasa       = null;
+let usuarioActualId = null;
+let usuarioEsAdmin = false;
 
 const TIPO_ICON  = { apartamento:'🏢', habitacion:'🛏', apartaestudio:'🏠', casa:'🏡' };
 const TIPO_LABEL = { apartamento:'Apartamento', habitacion:'Habitación', apartaestudio:'Apartaestudio', casa:'Casa' };
@@ -29,6 +32,21 @@ const map = new maplibregl.Map({
 });
 
 
+async function cargarUsuarioActual() {
+    try {
+        const res = await fetch('/auth/me');
+        const user = await res.json();
+        if (user.autenticado) {
+            usuarioActualId = Number(user.id);
+            usuarioEsAdmin = user.es_admin === true;
+        }
+    } catch (err) {
+        usuarioActualId = null;
+        usuarioEsAdmin = false;
+    }
+}
+
+
 registerPoiIcons(map),
 // Sin zoom, sin brújula: el zoom debe ser con gestos de los dedos igual la brujula 
 map.addControl(new maplibregl.NavigationControl({ showZoom: false, showCompass: true }));
@@ -40,6 +58,19 @@ const zoomInfo = document.getElementById('zoom-info');
 map.on('move', () => {
   zoomInfo.innerHTML = 'Zoom: ' + map.getZoom().toFixed(2);
  });
+
+
+map.on('load', async () => {
+    map.addSource('ruta', { type:'geojson', data:{ type:'FeatureCollection', features:[] } });
+    map.addLayer({
+        id: 'ruta-line', type: 'line', source: 'ruta',
+        paint: { 'line-color':'#e63946', 'line-width':5, 'line-opacity':0.85 }
+    });
+
+    await cargarUsuarioActual();
+    casas.forEach(c => agregarPin(c, false));
+});
+
 
 map.on('load', () => {
     // Capa ruta
@@ -53,15 +84,12 @@ map.on('load', () => {
 
 // ── Pins ──────────────────────────────────────────────────────────────────────
 function agregarPin(casa, animado) {
+
     const el = document.createElement('div');
-    el.innerHTML = TIPO_ICON[casa.tipo] || '🏠';
-    el.style.cssText = 'font-size:26px;cursor:pointer;filter:drop-shadow(0 2px 4px rgba(0,0,0,.35));transition:transform .15s;';
-
-//--------- Toca revisar esta animacion, creo que esta corriendo el icono a donde no debe ------------------->
-
-    if (animado) el.style.animation = 'pinPop .4s ease forwards'; 
-    el.onmouseenter = () => el.style.transform = 'scale(1.25)';
-    el.onmouseleave = () => el.style.transform = 'scale(1)';
+    el.textContent = TIPO_ICON[casa.tipo] || '🏠';
+    el.style.cssText =
+    'font-size:26px;cursor:pointer;' +
+    'filter:drop-shadow(0 2px 4px rgba(0,0,0,.35));';
 // ---------------------------------------------------------------------------------------------------------
 	
     let fotosHTML = '';
@@ -71,22 +99,32 @@ function agregarPin(casa, animado) {
         '</div>';
     }
 
+    const puedeEliminar =
+    usuarioEsAdmin ||
+    (usuarioActualId !== null &&
+     Number(casa.propietario_id) === usuarioActualId);
+
+const botonEliminar = puedeEliminar
+    ? `<button onclick="eliminarCasa(${casa.id})"
+          style="background:#ffeef0;color:#e63946;border:2px solid #ffd0d3;padding:9px 12px;border-radius:8px;cursor:pointer;font-size:.85rem;">
+          🗑
+       </button>`
+    : '';
+
     const popup = new maplibregl.Popup({ offset:28, maxWidth:'270px' })
         .setHTML(`
             <div class="casa-popup">
                 ${fotosHTML}
                 <span class="tipo-badge">${TIPO_LABEL[casa.tipo] || casa.tipo}</span>
                 ${casa.descripcion ? `<p class="desc">${casa.descripcion}</p>` : ''}
+                ${casa.direccion ? `<p class="desc">📍 ${casa.direccion}</p>` : ''}
                 <p class="tel">📞 ${casa.telefono || 'Sin contacto'}</p>
                 <div style="display:flex;gap:6px;margin-top:10px;">
                     <button onclick="iniciarRuta(${casa.id},${casa.lat},${casa.lng},'${casa.nombre}')"
                         style="flex:1;background:#1d3557;color:#fff;border:none;padding:9px;border-radius:8px;cursor:pointer;font-size:.82rem;">
                         🗺 Ruta
                     </button>
-                    <button onclick="eliminarCasa(${casa.id})"
-                        style="background:#ffeef0;color:#e63946;border:2px solid #ffd0d3;padding:9px 12px;border-radius:8px;cursor:pointer;font-size:.85rem;">
-                        🗑
-                    </button>
+                    ${botonEliminar}
                 </div>
             </div>
         `);
@@ -112,6 +150,7 @@ async function abrirSheet() {
         window.location.href = '/auth/google';
         return;
     }
+    permiteUbicacionManual = user.limite_publicaciones === null || user.limite_publicaciones > 1;
 
     // Mostrar foto del usuario en el botón
     if (user.foto) {
@@ -128,12 +167,27 @@ function _abrirSheetInterno() {
     document.querySelectorAll('.tipo-chip').forEach(c => c.classList.remove('selected'));
     document.getElementById('inp-telefono').value = '';
     document.getElementById('inp-descripcion').value = '';
+    document.getElementById('inp-direccion').value = '';
+    document.getElementById('inp-lat').value = '';
+    document.getElementById('inp-lng').value = '';
+    document.getElementById('ubicacion-manual').checked = false;
+    document.getElementById('ubicacion-manual-wrap').style.display = permiteUbicacionManual ? 'block' : 'none';
     [0,1,2,3].forEach(resetSlot);
     document.getElementById('btn-guardar').disabled = true;
     document.getElementById('btn-guardar').textContent = 'Publicar arriendo';
-    obtenerGPS();
+    alternarUbicacionManual();
     document.getElementById('sheet').style.display  = 'flex';
     document.getElementById('overlay').style.display = 'block';
+}
+
+function alternarUbicacionManual() {
+    const manual = permiteUbicacionManual && document.getElementById('ubicacion-manual').checked;
+    document.getElementById('gps-status').style.display = manual ? 'none' : 'flex';
+    for (const id of ['inp-direccion', 'inp-lat', 'inp-lng']) {
+        document.getElementById(id).disabled = !manual;
+    }
+    if (!manual) obtenerGPS();
+    else actualizarBotonGuardar();
 }
 
 // Al cargar la página, verificar si venía a publicar
@@ -142,7 +196,10 @@ window.addEventListener('load', async () => {
         sessionStorage.removeItem('pendiente_publicar');
         const res = await fetch('/auth/me');
         const user = await res.json();
-        if (user.autenticado) _abrirSheetInterno();
+        if (user.autenticado) {
+            permiteUbicacionManual = user.limite_publicaciones === null || user.limite_publicaciones > 1;
+            _abrirSheetInterno();
+        }
     }
 });
 function cerrarSheet() {
@@ -178,6 +235,40 @@ function obtenerGPS() {
     );
 }
 
+// ── Centrar el mapa en la ubicación actual ────────────────────────────────────
+function centrarUbicacion() {
+    if (!navigator.geolocation) {
+        showToast('Este navegador no permite obtener la ubicación.');
+        return;
+    }
+
+    const boton = document.getElementById('btn-locate');
+    boton.disabled = true;
+    boton.title = 'Buscando ubicación…';
+
+    navigator.geolocation.getCurrentPosition(
+        pos => {
+            userLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+            map.flyTo({ center: [userLocation.lng, userLocation.lat], zoom: 15 });
+            boton.disabled = false;
+            boton.title = 'Mi ubicación';
+            actualizarBotonGuardar();
+        },
+        err => {
+            boton.disabled = false;
+            boton.title = 'Mi ubicación';
+            if (err.code === err.PERMISSION_DENIED) {
+                showToast('Permite el acceso a la ubicación en tu navegador para usar esta función.');
+            } else if (err.code === err.TIMEOUT) {
+                showToast('No se pudo obtener la ubicación a tiempo. Inténtalo de nuevo.');
+            } else {
+                showToast('No se pudo obtener tu ubicación. Revisa el GPS y los permisos del navegador.');
+            }
+        },
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 30000 }
+    );
+}
+
 // ── Tipo de vivienda ─────────────────────────────────────────────────────────
 function selTipo(el) {
     document.querySelectorAll('.tipo-chip').forEach(c => c.classList.remove('selected'));
@@ -187,7 +278,13 @@ function selTipo(el) {
 }
 
 function actualizarBotonGuardar() {
-    document.getElementById('btn-guardar').disabled = !(tipoSeleccionado && userLocation);
+    const manual = permiteUbicacionManual && document.getElementById('ubicacion-manual').checked;
+    const lat = document.getElementById('inp-lat').value;
+    const lng = document.getElementById('inp-lng').value;
+    const ubicacionLista = manual
+        ? !!document.getElementById('inp-direccion').value.trim() && lat !== '' && lng !== ''
+        : !!userLocation;
+    document.getElementById('btn-guardar').disabled = !(tipoSeleccionado && ubicacionLista);
 }
 
 // ── Fotos ─────────────────────────────────────────────────────────────────────
@@ -244,7 +341,8 @@ function resetSlot(idx) {
 // Un usuario qeu no sea root no puede agragar mas de (1) publicacion, debe contratar nuestros servicios
 // para que un usuario publique debe validar su numero de telefono mediante un sms o whatsapp
 function guardarArriendo() {
-    if (!tipoSeleccionado || !userLocation) return;
+    const manual = permiteUbicacionManual && document.getElementById('ubicacion-manual').checked;
+    if (!tipoSeleccionado || (!manual && !userLocation)) return;
     const telefono    = document.getElementById('inp-telefono').value.trim();
     const descripcion = document.getElementById('inp-descripcion').value.trim();
     const fotos       = fotosData.filter(Boolean);
@@ -252,8 +350,9 @@ function guardarArriendo() {
     const payload = {
         nombre:      TIPO_LABEL[tipoSeleccionado] || tipoSeleccionado,
         descripcion,
-        lat:         userLocation.lat,
-        lng:         userLocation.lng,
+        lat:         manual ? Number(document.getElementById('inp-lat').value) : userLocation.lat,
+        lng:         manual ? Number(document.getElementById('inp-lng').value) : userLocation.lng,
+        direccion:   manual ? document.getElementById('inp-direccion').value.trim() : '',
         tipo:        tipoSeleccionado,
         telefono,
         fotos,
@@ -329,8 +428,9 @@ function eliminarCasa(id) {
                 markersMap[id]?.remove();
                 delete markersMap[id];
                 casas = casas.filter(c => c.id !== id);
-            }
-        });
+            } else return r.json().then(e => { throw new Error(e.detail || 'No se pudo eliminar la publicación.'); });
+        })
+        .catch(err => showToast('❌ ' + err.message));
 }
 // toca añadir un contador para que se eliminen automatica mente cada 45 dias 
 // ── WebSocket ─────────────────────────────────────────────────────────────────

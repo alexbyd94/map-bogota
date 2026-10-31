@@ -62,10 +62,37 @@ def init_db():
                 email     TEXT UNIQUE NOT NULL,
                 nombre    TEXT,
                 foto_url  TEXT,
-                creado_en TIMESTAMPTZ DEFAULT NOW(),
-                activo    BOOLEAN DEFAULT TRUE
+                creado_en TIMESTAMPTZ NOT NULL DEFAULT NOW()
             );
             ALTER TABLE casas ADD COLUMN IF NOT EXISTS usuario_id INTEGER REFERENCES usuarios(id);
+            ALTER TABLE casas ADD COLUMN IF NOT EXISTS direccion TEXT NOT NULL DEFAULT '';
+            CREATE TABLE IF NOT EXISTS permisos_publicacion (
+                usuario_id INTEGER PRIMARY KEY REFERENCES usuarios(id) ON DELETE CASCADE,
+                max_publicaciones INTEGER,
+                concedido_por INTEGER REFERENCES usuarios(id),
+                concedido_en TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                expira_en TIMESTAMPTZ
+            );
+            CREATE TABLE IF NOT EXISTS outbox_events (
+                id BIGSERIAL PRIMARY KEY,
+                event_type TEXT NOT NULL,
+                aggregate_id BIGINT NOT NULL,
+                payload JSONB NOT NULL,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                processed_at TIMESTAMPTZ,
+                attempts INTEGER NOT NULL DEFAULT 0,
+                next_attempt_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                last_error TEXT
+            );
+            CREATE TABLE IF NOT EXISTS auditoria_publicaciones (
+                id BIGSERIAL PRIMARY KEY,
+                casa_id BIGINT NOT NULL,
+                accion TEXT NOT NULL,
+                realizada_por INTEGER NOT NULL REFERENCES usuarios(id),
+                propietario_id INTEGER REFERENCES usuarios(id),
+                realizada_en TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                detalle JSONB NOT NULL DEFAULT '{}'::jsonb
+            );
         """))
         conn.commit()
 
@@ -95,6 +122,7 @@ manager = ConnectionManager()
 # ── Modelos ───────────────────────────────────────────────────────────────────
 class CasaIn(BaseModel):
     nombre:      str
+    direccion:   str       = ""
     descripcion: str       = ""
     lat:         float
     lng:         float
@@ -104,7 +132,9 @@ class CasaIn(BaseModel):
 
 class CasaOut(BaseModel):
     id:          int
+    propietario_id: int | None = None
     nombre:      str
+    direccion:   str = ""
     descripcion: str
     lat:         float
     lng:         float
@@ -129,6 +159,26 @@ if os.path.exists(static_path):
     app.mount("/static", StaticFiles(directory=static_path), name="static")
 
 # ── Helpers DB ────────────────────────────────────────────────────────────────
+def _limite_publicaciones(session: Session, usuario_id: int) -> int | None:
+    """Devuelve el máximo de publicaciones (1 básico; None sin límite)."""
+    row = session.execute(text("""
+        SELECT max_publicaciones
+        FROM permisos_publicacion
+        WHERE usuario_id = :uid
+          AND (expira_en IS NULL OR expira_en > NOW())
+    """), {"uid": usuario_id}).fetchone()
+    return 1 if row is None else row.max_publicaciones
+
+def _es_admin(session: Session, usuario_id: int) -> bool:
+    return session.execute(text("""
+        SELECT EXISTS (
+            SELECT 1 FROM permisos_publicacion
+            WHERE usuario_id = :uid
+              AND max_publicaciones IS NULL
+              AND (expira_en IS NULL OR expira_en > NOW())
+        )
+    """), {"uid": usuario_id}).scalar_one()
+
 def _row_to_out(r) -> CasaOut:
     fotos = r.fotos if r.fotos else []
     if isinstance(fotos, str):
@@ -138,7 +188,9 @@ def _row_to_out(r) -> CasaOut:
             fotos = []
     return CasaOut(
         id=r.id,
+        propietario_id=r.propietario_id,
         nombre=r.nombre,
+        direccion=r.direccion or "",
         descripcion=r.descripcion,
         lat=r.lat,
         lng=r.lng,
@@ -149,7 +201,8 @@ def _row_to_out(r) -> CasaOut:
 
 def _get_casas(session: Session) -> list[CasaOut]:
     rows = session.execute(text("""
-        SELECT id, nombre, descripcion, tipo, telefono, fotos,
+        SELECT id, nombre, direccion, descripcion, tipo, telefono, fotos,
+               usuario_id AS propietario_id,
                ST_Y(ubicacion::geometry) AS lat,
                ST_X(ubicacion::geometry) AS lng
         FROM casas ORDER BY creado_en DESC
@@ -214,7 +267,18 @@ async def google_callback(code: str):
 async def me(usuario: dict | None = Depends(usuario_actual)):
     if not usuario:
         return {"autenticado": False}
-    return {"autenticado": True, **usuario}
+    with Session(engine) as session:
+            uid = int(usuario["sub"])
+            limite = _limite_publicaciones(session, uid)
+            es_admin = _es_admin(session, uid)
+
+    return {
+            "autenticado": True,
+            "id": uid,
+            "es_admin": es_admin,
+            "limite_publicaciones": limite,
+            **usuario,
+    }
 
 @app.get("/auth/logout")
 async def logout():
@@ -247,23 +311,38 @@ async def crear(casa: CasaIn, usuario: dict = Depends(requiere_auth)):
     fotos_json = json.dumps(casa.fotos)
 
     with Session(engine) as session:
+        usuario_id = int(usuario["sub"])
+        # Serializa publicaciones del mismo usuario para no exceder el límite en paralelo.
+        session.execute(text(
+            "SELECT id FROM usuarios WHERE id = :uid FOR UPDATE"
+        ), {"uid": usuario_id}).fetchone()
+        limite = _limite_publicaciones(session, usuario_id)
+        if limite is not None:
+            publicadas = session.execute(text(
+                "SELECT COUNT(*) FROM casas WHERE usuario_id = :uid"
+            ), {"uid": usuario_id}).scalar_one()
+            if publicadas >= limite:
+                raise HTTPException(403, "Has alcanzado tu límite de publicaciones.")
+
         row = session.execute(text("""
-            INSERT INTO casas (nombre, descripcion, ubicacion, tipo, telefono, fotos, usuario_id)
-            VALUES (:nombre, :descripcion,
+            INSERT INTO casas (nombre, direccion, descripcion, ubicacion, tipo, telefono, fotos, usuario_id)
+            VALUES (:nombre, :direccion, :descripcion,
                     ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)::geography,
                     :tipo, :telefono, cast(:fotos as jsonb), :usuario_id)
-            RETURNING id, nombre, descripcion, tipo, telefono, fotos,
+            RETURNING id, nombre, direccion, descripcion, tipo, telefono, fotos,
+                      usuario_id AS propietario_id,
                       ST_Y(ubicacion::geometry) AS lat,
                       ST_X(ubicacion::geometry) AS lng
         """), {
             "nombre":      casa.nombre,
+            "direccion":   casa.direccion,
             "descripcion": casa.descripcion,
             "lat":         casa.lat,
             "lng":         casa.lng,
             "tipo":        casa.tipo,
             "telefono":    casa.telefono,
             "fotos":       fotos_json,
-            "usuario_id":  int(usuario["sub"]),
+            "usuario_id":  usuario_id,
         }).fetchone()
         session.commit()
 
@@ -272,12 +351,30 @@ async def crear(casa: CasaIn, usuario: dict = Depends(requiere_auth)):
     return nueva
 
 @app.delete("/casas/{casa_id}", status_code=204)
-async def eliminar(casa_id: int):
+async def eliminar(casa_id: int, usuario: dict = Depends(requiere_auth)):
     with Session(engine) as session:
-        r = session.execute(text("DELETE FROM casas WHERE id=:id"), {"id": casa_id})
+        uid = int(usuario["sub"])
+        casa = session.execute(text(
+            "SELECT usuario_id FROM casas WHERE id = :id FOR UPDATE"
+        ), {"id": casa_id}).fetchone()
+        if casa is None:
+            raise HTTPException(404, "Publicación no encontrada.")
+        if casa.usuario_id != uid and not _es_admin(session, uid):
+            raise HTTPException(403, "Solo el propietario o un administrador puede eliminar esta publicación.")
+        session.execute(text("""
+            INSERT INTO auditoria_publicaciones
+                (casa_id, accion, realizada_por, propietario_id, detalle)
+            VALUES (:id, 'eliminacion', :uid, :propietario_id,
+                    jsonb_build_object('origen', 'api'))
+        """), {"id": casa_id, "uid": uid, "propietario_id": casa.usuario_id})
+        session.execute(text("""
+            INSERT INTO outbox_events (event_type, aggregate_id, payload)
+            VALUES ('casa.eliminada', :id,
+                    jsonb_build_object('casa_id', :id, 'eliminada_por', :uid,
+                                       'propietario_id', :propietario_id))
+        """), {"id": casa_id, "uid": uid, "propietario_id": casa.usuario_id})
+        session.execute(text("DELETE FROM casas WHERE id=:id"), {"id": casa_id})
         session.commit()
-        if r.rowcount == 0:
-            raise HTTPException(404, "Casa no encontrada.")
     await manager.broadcast({"tipo": "pin_eliminado", "id": casa_id})
 
 @app.websocket("/ws")

@@ -13,11 +13,6 @@ services:
       - "5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
-      # Solo scripts que NO dependen de datos de OSM van aquí — Postgres los
-      # corre una sola vez, al crear el volumen, antes de que exista
-      # planet_osm_*. 02_crear_vistas.sql, 03_schema_actual.sql (dump de
-      # diagnóstico, no idempotente) y 04_casas_data.sql (dump redundante con
-      # los INSERT de 01_init.sql) NO deben estar en esta carpeta.
       - ./init:/docker-entrypoint-initdb.d
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U bogota_user -d bogota_map"]
@@ -49,7 +44,7 @@ services:
 
   # ── Vistas para Martin (solo puede correr DESPUÉS del loader) ─────────────
   vistas:
-    image: postgis/postgis:16-3.5   # misma imagen que db: trae psql garantizado
+    image: postgis/postgis:16-3.5   
     container_name: bogota_vistas
     restart: "no"
     depends_on:

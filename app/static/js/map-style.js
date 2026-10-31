@@ -1,3 +1,27 @@
+// ## 8. Rendimiento
+
+// October 30, 2026 
+
+// 1. Marcadores HTML vs capas. Cada `Marker` es un elemento DOM, 
+// y con más de unos cientos la app se pone lenta. Una capa `circle` o `symbol` 
+// dibuja miles en WebGL. Es el cambio más importante que puedes hacer en tu proyecto.
+
+// 2. **Clustering** gratis con GeoJSON:Luego una capa para `['has','point_count']`
+//  (los clusters) y otra para `['!',['has','point_count']]` (casas sueltas).
+    
+//     ```jsx
+//     map.addSource('casas', { type:'geojson', data:'/casas.geojson',  cluster:true, clusterMaxZoom:14, clusterRadius:50 });
+//     ```
+    
+// 3. **Pon `minzoom` en las capas pesadas** (edificios, comercio) para que no se pidan teselas innecesarias. Ya lo haces bien a nivel de source.
+// 4. **Menos capas, mejores filtros.** Cada capa es un pase de dibujo. Tus tres capas de calles podrían ser una sola con `match` en el color y el ancho.
+// 5. **Reduce propiedades** en las teselas: cada atributo extra pesa en cada tesela.
+// 6. **`maxzoom` de source realista.** Si tus datos no ganan detalle después del zoom 16, no sirvas más.
+// 7. **Iconos en sprite.** Para `symbol` con emojis o imágenes, regístralos con `map.addImage()` una vez, no uno por feature.
+
+
+// -------------------------------------------------------------------------------------------------------------------
+// ===================================================================================================================
 
 // Paleta: manzanas crema, calles gris‑beige, parques verde lima, agua celeste.
 // Uso: buildStyle(MARTIN) devuelve el objeto "style" de MapLibre.

@@ -24,7 +24,12 @@
 
 /* ── Botón ubicación ── */
 #btn-locate {
-    position: absolute; bottom: 32px; left: 24px;
+
+    position: absolute;
+    bottom: 102px;
+    right: 24px;
+    left: auto;
+
     width: 46px; height: 46px; border-radius: 20%;
     background: white; border: none; cursor: pointer;
     box-shadow: 0 4px 16px rgba(0,0,0,.18);
@@ -33,7 +38,6 @@
     font-size: 1.4rem;
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
-    transition: transform .15s;
 }
 #btn-locate:active { transform: scale(.92); }
 
@@ -103,6 +107,12 @@
     margin-bottom: 20px; transition: border-color .15s;
     box-sizing: border-box;
 }
+#inp-direccion, #inp-lat, #inp-lng {
+    width: 100%; border: 1.5px solid #e8e8e8; border-radius: 12px;
+    padding: 12px 14px; font-size: 16px; font-family: inherit;
+    color: #1d1d1d; margin-bottom: 14px; box-sizing: border-box;
+}
+.coords-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 #inp-telefono:focus, #inp-descripcion:focus {
     outline: none; border-color: #e63946;
 }

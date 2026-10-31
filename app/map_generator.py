@@ -6,6 +6,7 @@ class CasaLike(Protocol):
 
     id: int
     nombre: str
+    direccion: str
     descripcion: str
     lat: float
     lng: float
@@ -25,7 +26,9 @@ def build_map(casas: Sequence[CasaLike]) -> str:
     casas_json = json.dumps([
         {
             "id":          c.id,
+            "propietario_id": c.propietario_id,
             "nombre":      c.nombre,
+            "direccion":   c.direccion,
             "descripcion": c.descripcion,
             "lat":         c.lat,
             "lng":         c.lng,
@@ -68,6 +71,19 @@ def build_map(casas: Sequence[CasaLike]) -> str:
 
             <label class="field-label" for="inp-telefono">Número de contacto</label>
             <input id="inp-telefono" type="tel" placeholder="Ej: 300 123 4567" inputmode="tel">
+
+            <div id="ubicacion-manual-wrap" style="display:none">
+                <label style="display:flex;gap:8px;align-items:center;margin:0 0 14px;color:#555;font-size:.9rem">
+                    <input id="ubicacion-manual" type="checkbox" onchange="alternarUbicacionManual()">
+                    Ingresar ubicación de la propiedad
+                </label>
+                <label class="field-label" for="inp-direccion">Dirección de la propiedad</label>
+                <input id="inp-direccion" type="text" placeholder="Ej: Calle 80 # 15-20" oninput="actualizarBotonGuardar()">
+                <div class="coords-row">
+                    <div><label class="field-label" for="inp-lat">Latitud</label><input id="inp-lat" type="number" step="any" placeholder="4.65" oninput="actualizarBotonGuardar()"></div>
+                    <div><label class="field-label" for="inp-lng">Longitud</label><input id="inp-lng" type="number" step="any" placeholder="-74.06" oninput="actualizarBotonGuardar()"></div>
+                </div>
+            </div>
 
             <label class="field-label" for="inp-descripcion">Descripción (opcional)</label>
             <textarea id="inp-descripcion" placeholder="Ej: 2 hab, cerca al parque, $1.200.000…"></textarea>
