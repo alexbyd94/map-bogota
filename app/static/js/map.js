@@ -71,17 +71,6 @@ map.on('load', async () => {
     casas.forEach(c => agregarPin(c, false));
 });
 
-
-map.on('load', () => {
-    // Capa ruta
-    map.addSource('ruta', { type:'geojson', data:{ type:'FeatureCollection', features:[] } });
-    map.addLayer({
-        id: 'ruta-line', type: 'line', source: 'ruta',
-        paint: { 'line-color':'#e63946', 'line-width':5, 'line-opacity':0.85 }
-    });
-    casas.forEach(c => agregarPin(c, false));
-});
-
 // ── Pins ──────────────────────────────────────────────────────────────────────
 function agregarPin(casa, animado) {
 

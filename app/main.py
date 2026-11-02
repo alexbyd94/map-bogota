@@ -222,7 +222,11 @@ async def login_google():
     return RedirectResponse("https://accounts.google.com/o/oauth2/auth?" + urlencode(params))
 
 @app.get("/auth/google/callback")
-async def google_callback(code: str):
+async def google_callback(code: str | None = None, error: str | None = None):
+
+    if error or not code:
+        return RedirectResponse("/?login_error=" + (error or "missing_code"))
+
     async with httpx.AsyncClient() as client:
         token_res = await client.post("https://oauth2.googleapis.com/token", data={
             "code":          code,

@@ -1,10 +1,24 @@
 # Bogotá Arriendos 
 
-# .env porque en main.py estan todas las CREDENCIALES EXPUESTAS
 
-# Para que websockets???
-# separar modelos de logica en main.py
+Claro: como ya están versionados, `.gitignore` no dejará de registrar sus cambios. **No uses `git rm --cached`** para esto: los quitaría del repositorio y podrías perderlos al cambiar de rama.
 
+Para conservarlos distintos en `dev` y `main`, pero ignorar automáticamente sus cambios locales en `dev`, usa `skip-worktree`. Por los archivos que mencionaste:
+
+```bash
+git switch dev
+git update-index --skip-worktree Dockerfile docker-compose.prod.yml Caddyfile
+```
+
+Git dejará de mostrar cambios locales en esos archivos en `dev`, sin quitarlos del repositorio. En `main` seguirán las versiones de producción. Puedes comprobarlo con `git status --short`.
+
+Cuando necesites que Git vuelva a detectar cambios en esos archivos en `dev`:
+
+```bash
+git update-index --no-skip-worktree Dockerfile docker-compose.prod.yml Caddyfile
+```
+
+**Ojo:** `skip-worktree` es local a tu copia del repositorio; no se comparte con otros colaboradores. No lo uses si necesitas guardar cambios de configuración en esos archivos en `dev`.
 
 
 ### Mapa de la ciudad donden ubicar de forma rapida un piso en alquiler

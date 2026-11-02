@@ -7,10 +7,11 @@ __pycache__/
 .ruff_cache/
 .venv/
 venv/
-data/
 app/static/libs/
 martin/config.yaml
 client_secret*
 *.pem
 *.key
 .DS_Store
+/data/colombia-latest.osm.pbf
+/data/osrm-foot/

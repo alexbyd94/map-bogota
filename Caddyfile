@@ -1,0 +1,16 @@
+{
+	# Correo para avisos de Let's Encrypt (vencimientos, problemas)
+	email {$ACME_EMAIL}
+}
+
+# Frontend + API (FastAPI)
+{$DOMAIN} {
+	encode zstd gzip
+	reverse_proxy app:8000
+}
+
+# Tiles vectoriales (Martin)
+{$TILES_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy martin:3000
+}

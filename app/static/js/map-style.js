@@ -21,6 +21,10 @@
 
 
 // -------------------------------------------------------------------------------------------------------------------
+//
+//    					https://snazzymaps.com/explore?page=5&color=white
+// 					procesar las imágenes con: https://www.thumbor.org
+//
 // ===================================================================================================================
 
 // Paleta: manzanas crema, calles gris‑beige, parques verde lima, agua celeste.
@@ -52,9 +56,9 @@ const COLOR = {
 // Cada grupo agrupa varios valores del campo 'amenity' de la capa equipamiento.
 const POI_GROUPS = {
     salud:     { amenities: ['hospital', 'clinic'],
-                 color: '#d93025', fill: '#fbe0dd', line: '#efbdb8', emoji: '🏥' },
+                 color: '#d93025', fill: '#fbe0dd', line: '#efbdb8', emoji: '' },
     educacion: { amenities: ['school', 'college', 'university', 'kindergarten'],
-                 color: '#4f6b8a', fill: '#dfe6ef', line: '#c6d1e0', emoji: '🎓' },
+                 color: '#4f6b8a', fill: '#dfe6ef', line: '#c6d1e0', emoji: '' },
     gobierno:  { amenities: ['townhall', 'courthouse', 'police', 'fire_station', 'public_building', 'post_office'],
                  color: '#4f6b8a', fill: '#dfe6ef', line: '#c6d1e0', emoji: '' },
     cultura:   { amenities: ['museum', 'library', 'theatre', 'arts_centre', 'cinema', 'community_centre'],
