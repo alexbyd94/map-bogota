@@ -17,28 +17,12 @@ class CasaLike(Protocol):
 MAPLIBRE_JS  = "/static/libs/maplibre-gl.js"
 MAPLIBRE_CSS = "/static/libs/maplibre-gl.css"
 
-def build_map(casas: Sequence[CasaLike]) -> str:
+def build_map() -> str:
 
     MARTIN_PUBLIC = os.getenv("MARTIN_PUBLIC", "http://localhost:3000")
     OSRM_CAR_URL  = os.getenv("OSRM_CAR_URL",  "http://localhost:5010")
     OSRM_FOOT_URL = os.getenv("OSRM_FOOT_URL", "http://localhost:5011")
     
-    casas_json = json.dumps([
-        {
-            "id":          c.id,
-            "propietario_id": c.propietario_id,
-            "nombre":      c.nombre,
-            "direccion":   c.direccion,
-            "descripcion": c.descripcion,
-            "lat":         c.lat,
-            "lng":         c.lng,
-            "tipo":        c.tipo,
-            "telefono":    c.telefono,
-            "fotos":       c.fotos,
-        }
-        for c in casas
-    ], ensure_ascii=False,)
-    casas_json = casas_json.replace("</", "<\\/")
 
     return f"""
     <link href='{MAPLIBRE_CSS}' rel='stylesheet' />
@@ -48,12 +32,21 @@ def build_map(casas: Sequence[CasaLike]) -> str:
 
     <div id="ml-map"></div>
     <div id="toast"></div>
-    <div id="overlay" onclick="cerrarSheet()"></div>
+    <div id="overlay" onclick="cerrarTodo()"></div>
 
     <div id="zoom-info" style="position:absolute; top:10px; left:10px; background:white; padding:5px; z-index:999;"></div>
 
     <button id="btn-locate" onclick="centrarUbicacion()" title="Mi ubicación">📍</button>
     <button id="btn-add"    onclick="abrirSheet()"       title="Publicar arriendo">+</button>
+
+        <!-- Contenedor Desplegable para Múltiples Arriendos en un Edificio (Clúster) -->
+    <div id="cluster-sheet" style="display:none; position:absolute; bottom:0; left:0; right:0; background:white; border-top-left-radius:16px; border-top-right-radius:16px; padding:20px; box-shadow:0 -4px 20px rgba(0,0,0,0.2); z-index:1450; max-height:60vh; overflow-y:auto;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+            <h3 id="cluster-title" style="margin:0; font-size:1.1rem; color:#1d3557;">Propiedades disponibles en este punto</h3>
+            <button onclick="cerrarClusterSheet()" style="background:none; border:none; font-size:1.2rem; cursor:pointer;">✕</button>
+        </div>
+        <div id="cluster-items-container" style="display:flex; flex-direction:column; gap:12px;"></div>
+    </div>
 
     <!-- Bottom Sheet -->
     <div id="sheet">
@@ -110,7 +103,6 @@ def build_map(casas: Sequence[CasaLike]) -> str:
     const MARTIN    = "{MARTIN_PUBLIC}";
     const OSRM_CAR  = "{OSRM_CAR_URL}";
     const OSRM_FOOT = "{OSRM_FOOT_URL}";
-    const CASAS_DATA = {casas_json};
     </script>
     <script src='/static/js/map.js'></script>
     """

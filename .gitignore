@@ -8,9 +8,15 @@ __pycache__/
 .venv/
 venv/
 data/
+tests/
+docs/
 app/static/libs/
 martin/config.yaml
 client_secret*
 *.pem
 *.key
 .DS_Store
+docker-compose.prod.yml
+docker-compose.yml
+Dockerfile
+requirements-dev.txt

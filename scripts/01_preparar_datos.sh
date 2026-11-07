@@ -54,6 +54,12 @@ else
 fi
 
 # ── PASO 3: Levantar DB ───────────────────────────────────────────────────────
+#
+#until docker compose exec -T -e PGPASSWORD="${POSTGRES_PASSWORD:-bogota_pass}" db \
+      # psql -U bogota_user -d bogota_map -c 'select 1' &>/dev/null; do
+    # printf '.'; sleep 1
+# done
+#
 info "Levantando PostGIS…"
 cd "$ROOT"
 docker compose up -d db
