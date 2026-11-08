@@ -10,7 +10,6 @@ venv/
 data/
 tests/
 docs/
-app/static/libs/
 client_secret*
 *.pem
 *.key
