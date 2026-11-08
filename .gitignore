@@ -18,3 +18,4 @@ client_secret*
 /data/osrm-foot/
 docker-compose.yml
 requirements-dev.txt
+app/static/js/map.js.bak 
