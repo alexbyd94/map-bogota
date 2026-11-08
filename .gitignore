@@ -7,6 +7,9 @@ __pycache__/
 .ruff_cache/
 .venv/
 venv/
+data/
+tests/
+docs/
 app/static/libs/
 martin/config.yaml
 client_secret*
@@ -15,3 +18,5 @@ client_secret*
 .DS_Store
 /data/colombia-latest.osm.pbf
 /data/osrm-foot/
+docker-compose.yml
+requirements-dev.txt

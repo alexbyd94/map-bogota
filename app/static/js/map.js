@@ -1,5 +1,4 @@
 // ── Estado global ─────────────────────────────────────────────────────────────
-let casas            = CASAS_DATA;   // inyectado por map_generator.py
 let tipoSeleccionado = null;
 let fotosData        = [null, null, null, null];
 let fotoSlotActivo   = null;
@@ -47,7 +46,7 @@ async function cargarUsuarioActual() {
 }
 
 
-registerPoiIcons(map),
+// registerPoiIcons(map),
 // Sin zoom, sin brújula: el zoom debe ser con gestos de los dedos igual la brujula 
 map.addControl(new maplibregl.NavigationControl({ showZoom: false, showCompass: true }));
 
@@ -60,7 +59,11 @@ map.on('move', () => {
  });
 
 
+// Registro de eventos al cargar el mapa
 map.on('load', async () => {
+    // Cargar el icono SVG desde el servidor (se guardará en caché)
+    loadCasaMarkerIcon(map);
+
     map.addSource('ruta', { type:'geojson', data:{ type:'FeatureCollection', features:[] } });
     map.addLayer({
         id: 'ruta-line', type: 'line', source: 'ruta',
@@ -68,62 +71,162 @@ map.on('load', async () => {
     });
 
     await cargarUsuarioActual();
-    casas.forEach(c => agregarPin(c, false));
 });
 
-// ── Pins ──────────────────────────────────────────────────────────────────────
-function agregarPin(casa, animado) {
+// 1. Clic en un Clúster (Varias propiedades en el mismo edificio)
+map.on('click', 'casas-clusters', (e) => {
+    const features = map.queryRenderedFeatures(e.point, { layers: ['casas-clusters'] });
+    if (!features.length) return;
 
-    const el = document.createElement('div');
-    el.textContent = TIPO_ICON[casa.tipo] || '🏠';
-    el.style.cssText =
-    'font-size:26px;cursor:pointer;' +
-    'filter:drop-shadow(0 2px 4px rgba(0,0,0,.35));';
-// ---------------------------------------------------------------------------------------------------------
-	
-    let fotosHTML = '';
-    if (casa.fotos && casa.fotos.length) {
-        fotosHTML = '<div class="popup-fotos">' +
-            casa.fotos.slice(0,4).map(f => `<img src="${f}">`).join('') +
-        '</div>';
-    }
+    const clusterId = features[0].properties.cluster_id;
+    const source = map.getSource('casas');
 
-    const puedeEliminar =
-    usuarioEsAdmin ||
-    (usuarioActualId !== null &&
-     Number(casa.propietario_id) === usuarioActualId);
+    source.getClusterLeaves(clusterId, 50, 0, (err, leafFeatures) => {
+        if (err) return;
 
-const botonEliminar = puedeEliminar
-    ? `<button onclick="eliminarCasa(${casa.id})"
-          style="background:#ffeef0;color:#e63946;border:2px solid #ffd0d3;padding:9px 12px;border-radius:8px;cursor:pointer;font-size:.85rem;">
-          🗑
-       </button>`
-    : '';
+        const container = document.getElementById('cluster-items-container');
+        container.innerHTML = '';
 
-    const popup = new maplibregl.Popup({ offset:28, maxWidth:'270px' })
-        .setHTML(`
-            <div class="casa-popup">
-                ${fotosHTML}
-                <span class="tipo-badge">${TIPO_LABEL[casa.tipo] || casa.tipo}</span>
-                ${casa.descripcion ? `<p class="desc">${casa.descripcion}</p>` : ''}
-                ${casa.direccion ? `<p class="desc">📍 ${casa.direccion}</p>` : ''}
-                <p class="tel">📞 ${casa.telefono || 'Sin contacto'}</p>
-                <div style="display:flex;gap:6px;margin-top:10px;">
-                    <button onclick="iniciarRuta(${casa.id},${casa.lat},${casa.lng},'${casa.nombre}')"
-                        style="flex:1;background:#1d3557;color:#fff;border:none;padding:9px;border-radius:8px;cursor:pointer;font-size:.82rem;">
+
+        leafFeatures.forEach(f => {
+            const props = f.properties;
+            const coords = f.geometry.coordinates;
+
+            const cardHTML = generarTarjetaInmobiliaria(props, coords);
+            container.insertAdjacentHTML('beforeend', cardHTML);
+        });
+
+        document.getElementById('cluster-sheet').style.display = 'block';
+        document.getElementById('overlay').style.display = 'block';
+    });
+});
+
+// 2. Clic en un Marcador Individual
+map.on('click', 'casas-individuales', (e) => {
+    const feature = e.features[0];
+    const coords = feature.geometry.coordinates.slice();
+    const props = feature.properties;
+
+    const popupHTML = generarTarjetaInmobiliaria(props, coords);
+
+    new maplibregl.Popup({ offset: 28, maxWidth: '300px' })
+        .setLngLat(coords)
+        .setHTML(popupHTML)
+        .addTo(map);
+});
+
+// Cambiar cursor sobre la capa Symbol
+map.on('mouseenter', 'casas-clusters', () => { map.getCanvas().style.cursor = 'pointer'; });
+map.on('mouseleave', 'casas-clusters', () => { map.getCanvas().style.cursor = ''; });
+map.on('mouseenter', 'casas-individuales', () => { map.getCanvas().style.cursor = 'pointer'; });
+map.on('mouseleave', 'casas-individuales', () => { map.getCanvas().style.cursor = ''; });
+
+// Helper para generar el diseño de las tarjetas
+function generarTarjetaInmobiliaria(props, coords){
+    let fotos = [];
+    try { fotos = JSON.parse(props.fotos || '[]'); } catch(e) {}
+    const fotoUrl = fotos.length ? fotos[0] : 'https://via.placeholder.com/280x160?text=Sin+Imagen';
+
+    const precio = props.precio ? `$${Number(props.precio).toLocaleString()}` : '$1,600,000';
+    const sub = props.subtitulo || 'Arriendo con administración:';
+    const tipo = TIPO_LABEL[props.tipo] || 'Apartamento En Arriendo';
+    const direccion = props.direccion || 'Bogotá, Colombia';
+
+    const puedeEliminar = usuarioEsAdmin || (usuarioActualId !== null && Number(props.propietario_id) === usuarioActualId);
+    const btnEliminar = puedeEliminar ? `<button onclick="eliminarCasa(${props.id})" style="background:#ffeef0; color:#e63946; border:none; padding:6px 12px; border-radius:6px; cursor:pointer; font-size:0.8rem;">🗑 Eliminar</button>` : '';
+
+    return `
+        <div class="inmo-card">
+            <div class="inmo-card-img-container">
+                <img src="${fotoUrl}" alt="Inmueble">
+                <button class="inmo-card-fav">♡</button>
+            </div>
+            <div class="inmo-card-body">
+                <p class="inmo-card-subtitle">${sub}</p>
+                <p class="inmo-card-price">${precio}</p>
+                <h4 class="inmo-card-title">${tipo}</h4>
+                <p class="inmo-card-location">📍 ${direccion}</p>
+
+                <div style="display:flex; gap:8px; margin-top:8px;">
+                    <button onclick="iniciarRuta(${props.id}, ${coords[1]}, ${coords[0]}, '${props.nombre}')"
+                        style="flex:1; background:#1d3557; color:#fff; border:none; padding:8px; border-radius:6px; cursor:pointer; font-size:0.8rem;">
                         🗺 Ruta
                     </button>
-                    ${botonEliminar}
+                    ${btnEliminar}
                 </div>
             </div>
-        `);
-
-    const marker = new maplibregl.Marker({ element: el }) // Toca configurar una ubicacion aproximeda per seguridad y no la exacta
-        .setLngLat([casa.lng, casa.lat])
-        .setPopup(popup)
-        .addTo(map);
-    markersMap[casa.id] = marker;
+            <div class="inmo-card-footer">
+                <div><b>${props.area || '50.0'} m²</b></div>
+                <div><b>Habit. ${props.habitaciones || '2'}</b></div>
+                <div><b>Baños ${props.banos || '1'}</b></div>
+                <div><b>Garaje ${props.garaje || '0'}</b></div>
+            </div>
+        </div>
+    `;
 }
+
+function cerrarClusterSheet(){
+    document.getElementById('cluster-sheet').style.display = 'none';
+    document.getElementById('overlay').style.display = 'none';
+}
+
+function cerrarTodo(){
+    cerrarSheet();
+    cerrarClusterSheet();
+}
+
+// ── Pins ──────────────────────────────────────────────────────────────────────
+// function agregarPin(casa, animado) {
+
+//     // const el = document.createElement('div');
+//     // el.textContent = TIPO_ICON[casa.tipo] || '🏠';
+//     // el.style.cssText =
+//     // 'font-size:26px;cursor:pointer;' +
+//     // 'filter:drop-shadow(0 2px 4px rgba(0,0,0,.35));';
+// // ---------------------------------------------------------------------------------------------------------
+//     let fotosHTML = '';
+//     if (casa.fotos && casa.fotos.length) {
+//         fotosHTML = '<div class="popup-fotos">' +
+//             casa.fotos.slice(0,4).map(f => `<img src="${f}">`).join('') +
+//         '</div>';
+//     }
+
+//     const puedeEliminar =
+//     usuarioEsAdmin ||
+//     (usuarioActualId !== null &&
+//      Number(casa.propietario_id) === usuarioActualId);
+
+// const botonEliminar = puedeEliminar
+//     ? `<button onclick="eliminarCasa(${casa.id})"
+//           style="background:#ffeef0;color:#e63946;border:2px solid #ffd0d3;padding:9px 12px;border-radius:8px;cursor:pointer;font-size:.85rem;">
+//           🗑
+//        </button>`
+//     : '';
+
+//     const popup = new maplibregl.Popup({ offset:28, maxWidth:'270px' })
+//         .setHTML(`
+//             <div class="casa-popup">
+//                 ${fotosHTML}
+//                 <span class="tipo-badge">${TIPO_LABEL[casa.tipo] || casa.tipo}</span>
+//                 ${casa.descripcion ? `<p class="desc">${casa.descripcion}</p>` : ''}
+//                 ${casa.direccion ? `<p class="desc">📍 ${casa.direccion}</p>` : ''}
+//                 <p class="tel">📞 ${casa.telefono || 'Sin contacto'}</p>
+//                 <div style="display:flex;gap:6px;margin-top:10px;">
+//                     <button onclick="iniciarRuta(${casa.id},${casa.lat},${casa.lng},'${casa.nombre}')"
+//                         style="flex:1;background:#1d3557;color:#fff;border:none;padding:9px;border-radius:8px;cursor:pointer;font-size:.82rem;">
+//                         🗺 Ruta
+//                     </button>
+//                     ${botonEliminar}
+//                 </div>
+//             </div>
+//         `);
+
+//     const marker = new maplibregl.Marker({ element: el }) // Toca configurar una ubicacion aproximeda per seguridad y no la exacta
+//         .setLngLat([casa.lng, casa.lat])
+//         .setPopup(popup)
+//         .addTo(map);
+//     markersMap[casa.id] = marker;
+// }
 
 // ── Sheet ─────────────────────────────────────────────────────────────────────
 //
@@ -326,6 +429,11 @@ function resetSlot(idx) {
     slot.onclick = () => clickFoto(idx);
 }
 
+
+async function recargarCasas() {
+    const res = await fetch('/casas');
+    map.getSource('casas').setData(await res.json());
+}
 // ── Guardar ───────────────────────────────────────────────────────────────────
 // Un usuario qeu no sea root no puede agragar mas de (1) publicacion, debe contratar nuestros servicios
 // para que un usuario publique debe validar su numero de telefono mediante un sms o whatsapp
@@ -359,10 +467,7 @@ function guardarArriendo() {
     .then(r => r.ok ? r.json() : r.json().then(e => { throw new Error(e.detail) }))
     .then(casa => {
         cerrarSheet();
-        if (!markersMap[casa.id]) {
-            agregarPin(casa, true);
-            casas.push(casa);
-        }
+        recargarCasas();
         map.flyTo({ center: [casa.lng, casa.lat], zoom: 15 });
         showToast('✅ Arriendo publicado'); // toca corregir porque tambien puede ser una venta o si yo administro esta publicacion debe destacar ya que yo soy el usuario root admin con capacidad para eliminar cualquier publicacion
     })
@@ -414,9 +519,7 @@ function eliminarCasa(id) {
     fetch('/casas/' + id, { method: 'DELETE' })
         .then(r => {
             if (r.status === 204) {
-                markersMap[id]?.remove();
-                delete markersMap[id];
-                casas = casas.filter(c => c.id !== id);
+		    recargarCasas()
             } else return r.json().then(e => { throw new Error(e.detail || 'No se pudo eliminar la publicación.'); });
         })
         .catch(err => showToast('❌ ' + err.message));
@@ -424,27 +527,26 @@ function eliminarCasa(id) {
 // toca añadir un contador para que se eliminen automatica mente cada 45 dias 
 // ── WebSocket ─────────────────────────────────────────────────────────────────
 // Porque estamos usando websockets??????
+
 function conectarWS() {
     const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-    const ws    = new WebSocket(proto + '://' + location.host + '/ws');
+    const ws = new WebSocket(proto + '://' + location.host + '/ws');
+
     ws.onmessage = e => {
         const msg = JSON.parse(e.data);
+
         if (msg.tipo === 'nuevo_pin') {
             const c = msg.casa;
-            if (!markersMap[c.id]) {
-                casas.push(c);
-                agregarPin(c, true);
-                showToast('🏠 Nuevo arriendo: ' + (TIPO_LABEL[c.tipo] || c.tipo));
-            }
+            recargarCasas();
+            showToast('🏠 Nuevo arriendo: ' + (TIPO_LABEL[c.tipo] || c.tipo));
         } else if (msg.tipo === 'pin_eliminado') {
-            markersMap[msg.id]?.remove();
-            delete markersMap[msg.id];
-            casas = casas.filter(c => c.id !== msg.id);
+            recargarCasas();
         }
     };
     ws.onclose = () => setTimeout(conectarWS, 3000);
     ws.onerror = () => ws.close();
 }
+
 conectarWS();
 
 // Reposicionar sheet cuando el teclado virtual aparece (iOS/Android)

@@ -64,7 +64,7 @@ const POI_GROUPS = {
     cultura:   { amenities: ['museum', 'library', 'theatre', 'arts_centre', 'cinema', 'community_centre'],
                  color: '#8e4ec6', fill: '#ece1f6', line: '#d8c4ec', emoji: '' },
     culto:     { amenities: ['place_of_worship'],
-                 color: '#5f6368', fill: '#e6e7ea', line: '#d3d5da', emoji: '⛪︎'},
+                 color: '#5f6368', fill: '#e6e7ea', line: '#d3d5da', emoji: ''},
     transporte:{ amenities: ['bus_station'],
                  color: '#1a73e8', fill: '#dde8f8', line: '#bcd2f1', emoji: '' },
     gasolina:  { amenities: ['fuel'],
@@ -101,33 +101,56 @@ function categoryLabelExpr() {
     return expr;
 }
 
-// Dibuja los iconos (círculo blanco con borde de color + emoji) cuando MapLibre los pide.
-function registerPoiIcons(map) {
-    const defs = { 'poi-comercio': POI_COMERCIO };
-    for (const [key, g] of Object.entries(POI_GROUPS)) defs[`poi-${key}`] = g;
+// // Dibuja los iconos (círculo blanco con borde de color + emoji) cuando MapLibre los pide.
+// function registerPoiIcons(map) {
+//     const defs = { 'poi-comercio': POI_COMERCIO };
+//     for (const [key, g] of Object.entries(POI_GROUPS)) defs[`poi-${key}`] = g;
 
-    map.on('styleimagemissing', (e) => {
-        const d = defs[e.id];
-        if (!d) return;
-        const size = 30, ratio = 2;
-        const c = document.createElement('canvas');
-        c.width = c.height = size * ratio;
-        const ctx = c.getContext('2d');
-        ctx.scale(ratio, ratio);
-        // Solo el emoji (sin círculo), con un halo blanco para que se lea sobre cualquier fondo
-        ctx.font = '20px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.shadowColor = '#ffffff';
-        ctx.shadowBlur = 4;
-        ctx.fillText(d.emoji, size / 2, size / 2 + 1);   // halo
-        ctx.shadowBlur = 0;
-        ctx.shadowColor = 'transparent';
-        ctx.fillText(d.emoji, size / 2, size / 2 + 1);   // emoji nítido encima
-        if (!map.hasImage(e.id)) {
-            map.addImage(e.id, ctx.getImageData(0, 0, c.width, c.height), { pixelRatio: ratio });
-        }
-    });
+//     map.on('styleimagemissing', (e) => {
+//         const d = defs[e.id];
+//         if (!d) return;
+//         const size = 30, ratio = 2;
+//         const c = document.createElement('canvas');
+//         c.width = c.height = size * ratio;
+//         const ctx = c.getContext('2d');
+//         ctx.scale(ratio, ratio);
+//         // Solo el emoji (sin círculo), con un halo blanco para que se lea sobre cualquier fondo
+//         ctx.font = '20px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
+//         ctx.textAlign = 'center';
+//         ctx.textBaseline = 'middle';
+//         ctx.shadowColor = '#ffffff';
+//         ctx.shadowBlur = 4;
+//         ctx.fillText(d.emoji, size / 2, size / 2 + 1);   // halo
+//         ctx.shadowBlur = 0;
+//         ctx.shadowColor = 'transparent';
+//         ctx.fillText(d.emoji, size / 2, size / 2 + 1);   // emoji nítido encima
+//         if (!map.hasImage(e.id)) {
+//             map.addImage(e.id, ctx.getImageData(0, 0, c.width, c.height), { pixelRatio: ratio });
+//         }
+//     });
+// }
+
+// Carga svg
+// function loadCasaMarkerIcon(map){
+// 	if (map.hasImage('icono-casa-pin')) return;
+
+// 	const img = new Image(48, 64);
+// 	map.loadImage('/static/img/marker.svg', (error, image) => {
+// 		if (error) {
+// 			console.error('error cargando el icono del marcador', error);
+// 			return;
+// 		}
+// 		if (!map.hasImage('icono-casa-pin')) {
+// 			map.addImage('icono-casa-pin', image, { pixelRatio: 2});
+// 		}
+// 	});
+// }
+
+function loadCasaMarkerIcon(map) {
+    if (map.hasImage('icono-casa-pin')) return;
+    const img = new Image(48, 64);
+    img.onload = () => map.addImage('icono-casa-pin', img, { pixelRatio: 2 });
+    img.src = '/static/img/marker.svg';
 }
 
 
@@ -218,6 +241,17 @@ function buildStyle(MARTIN) {
             calles:       vec('calles', 10),
             ciclovias:    vec('ciclovias', 13),
             peatonal:     vec('peatonal', 14),
+
+
+           // Fuente vectorial MVT servida por Martin desde PostGIS con clustering
+            casas: {
+                type: 'geojson',
+                data: '/casas', 
+                cluster: true,
+                clusterMaxZoom: 16,
+                clusterRadius: 50,
+		promoteId:'id'
+	    }
         },
         layers: [
             { id: 'bg', type: 'background', paint: { 'background-color': COLOR.bg } },
@@ -355,6 +389,44 @@ function buildStyle(MARTIN) {
                     'text-halo-width': 1.2,
                 },
             },
-        ],
+
+	// Capa Symbol 1: Clústeres (Múltiples propiedades en el mismo edificio/zona)
+            {
+                id: 'casas-clusters',
+                type: 'symbol',
+                source: 'casas',
+                filter: ['has', 'point_count'],
+                layout: {
+                    'icon-image': 'icono-casa-pin',
+                    'icon-size': 0.9,
+                    'icon-allow-overlap': true,
+                    'icon-anchor': 'bottom',
+                    'text-field': ['get', 'point_count_abbreviated'],
+                    'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
+                    'text-size': 12,
+                    'text-offset': [0, -1.1], // Ubica el número dentro del globo del pin
+                    'text-allow-overlap': true
+                },
+                paint: {
+                    'text-color': '#ffffff',
+                    'text-halo-color': '#1d3557',
+                    'text-halo-width': 1.5
+                }
+            },
+
+            // Capa Symbol 2: Propiedades individuales
+            {
+                id: 'casas-individuales',
+                type: 'symbol',
+                source: 'casas',
+                filter: ['!', ['has', 'point_count']],
+                layout: {
+                    'icon-image': 'icono-casa-pin',
+                    'icon-size': 0.8,
+                    'icon-allow-overlap': true,
+                    'icon-anchor': 'bottom'
+                }
+            }
+        ]
     };
 }

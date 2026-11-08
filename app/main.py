@@ -294,16 +294,31 @@ async def logout():
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
     from map_generator import build_map
-    with Session(engine) as session:
-        casas = _get_casas(session)
     return templates.TemplateResponse(
-        "index.html", {"request": request, "map_html": build_map(casas)}
+             "index.html",
+        {"request": request, "map_html": build_map()}
     )
 
-@app.get("/casas", response_model=list[CasaOut])
+# @app.get("/casas", response_model=list[CasaOut])
+# async def listar():
+#     with Session(engine) as session:
+#         return _get_casas(session)
+
+@app.get("/casas")
 async def listar():
     with Session(engine) as session:
-        return _get_casas(session)
+        casas = _get_casas(session)
+    features = [{
+        "type": "Feature",
+        "geometry": {"type": "Point", "coordinates": [c.lng, c.lat]},
+        "properties": {
+            "id": c.id, "propietario_id": c.propietario_id,
+            "nombre": c.nombre, "direccion": c.direccion,
+            "descripcion": c.descripcion, "tipo": c.tipo,
+            "telefono": c.telefono, "fotos": c.fotos,
+        },
+    } for c in casas]
+    return {"type": "FeatureCollection", "features": features}
 
 @app.post("/casas", response_model=CasaOut, status_code=201)
 async def crear(casa: CasaIn, usuario: dict = Depends(requiere_auth)):
