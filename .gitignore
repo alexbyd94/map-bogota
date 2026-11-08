@@ -11,7 +11,6 @@ data/
 tests/
 docs/
 app/static/libs/
-martin/config.yaml
 client_secret*
 *.pem
 *.key
